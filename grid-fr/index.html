@@ -1,0 +1,395 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CSS Grid FR Calculator</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 40px 20px;
+      background: #f4f6f8;
+      color: #263238;
+      font-family: system-ui, sans-serif;
+    }
+
+    .calculator {
+      max-width: 800px;
+      margin: auto;
+    }
+
+    .calculator__header {
+      margin-bottom: 28px;
+    }
+
+    .calculator__header h1 {
+      margin: 0 0 8px;
+      font-size: 26px;
+    }
+
+    .calculator__header p {
+      margin: 0;
+      color: #718096;
+      font-size: 14px;
+    }
+
+    .calculator__group {
+      margin-bottom: 24px;
+    }
+
+    .calculator__label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    textarea {
+      display: block;
+      width: 100%;
+      min-height: 200px;
+      padding: 16px;
+      border: 1px solid #dce2e8;
+      border-radius: 10px;
+      outline: none;
+      background: #fff;
+      color: #263238;
+      font-family: monospace;
+      font-size: 14px;
+      line-height: 1.7;
+      resize: vertical;
+      tab-size: 2;
+    }
+
+    textarea:focus {
+      border-color: #1677c8;
+    }
+
+    textarea[readonly] {
+      background: #f9fafb;
+    }
+
+    .calculator__copy {
+      flex-shrink: 0;
+      padding: 9px 16px;
+      border: 0;
+      border-radius: 7px;
+      background: #1677c8;
+      color: white;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .calculator__copy:hover {
+      background: #105e9e;
+    }
+
+    .calculator__status {
+      margin-top: 10px;
+      font-size: 13px;
+      color: #d04444;
+    }
+
+    .calculator__status.success {
+      color: #16834a;
+    }
+
+    .calculator__info {
+      margin-top: 12px;
+      color: #718096;
+      font-size: 12px;
+      line-height: 1.7;
+    }
+
+    .calculator__stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .calculator__stat {
+      padding: 7px 12px;
+      border: 1px solid #dce2e8;
+      border-radius: 6px;
+      background: #fff;
+      color: #52616b;
+      font-size: 12px;
+    }
+
+    @media (max-width: 600px) {
+      body {
+        padding: 24px 14px;
+      }
+
+      .calculator__header h1 {
+        font-size: 22px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <main class="calculator">
+
+    <header class="calculator__header">
+      <h1>CSS Grid FR Calculator</h1>
+      <p>
+        Convert pixel-based Grid Columns and Rows into proportional FR units.
+      </p>
+    </header>
+
+    <!-- INPUT -->
+    <section class="calculator__group">
+
+      <div class="calculator__label">
+        <label for="cssInput">Input CSS</label>
+        <span>Paste your CSS</span>
+      </div>
+
+      <textarea
+        id="cssInput"
+        spellcheck="false"
+      >grid-template-columns: 560px 556px;
+grid-template-rows: 30px 50px;
+gap: 24px;
+width: 1440px;
+height: 100px;</textarea>
+
+    </section>
+
+    <!-- OUTPUT -->
+    <section class="calculator__group">
+
+      <div class="calculator__label">
+        <label for="cssOutput">Converted CSS</label>
+
+        <button
+          class="calculator__copy"
+          id="copyButton"
+          type="button"
+        >
+          Copy CSS
+        </button>
+      </div>
+
+      <textarea
+        id="cssOutput"
+        readonly
+        spellcheck="false"
+        placeholder="Your converted CSS will appear here..."
+      ></textarea>
+
+      <div
+        class="calculator__status"
+        id="status"
+        aria-live="polite"
+      ></div>
+
+      <div
+        class="calculator__stats"
+        id="stats"
+      ></div>
+
+      <p class="calculator__info">
+        FR values are calculated proportionally based on the largest
+        original pixel track. Other CSS declarations remain unchanged.
+      </p>
+
+    </section>
+
+  </main>
+
+  <script>
+    const cssInput = document.getElementById('cssInput');
+    const cssOutput = document.getElementById('cssOutput');
+    const copyButton = document.getElementById('copyButton');
+    const status = document.getElementById('status');
+    const stats = document.getElementById('stats');
+
+    /**
+     * Convert pixel tracks to FR.
+     *
+     * Example:
+     * 560px 556px => 1fr 0.993fr
+     * 30px 50px   => 0.6fr 1fr
+     */
+    function convertToFR(value) {
+      const tracks = value.trim().split(/\s+/);
+
+      if (tracks.length < 2) {
+        return null;
+      }
+
+      const sizes = tracks.map(track => {
+        const match = track.match(/^(\d+(?:\.\d+)?)px$/i);
+
+        return match ? parseFloat(match[1]) : null;
+      });
+
+      if (
+        sizes.some(size => size === null || size <= 0)
+      ) {
+        return null;
+      }
+
+      const maxSize = Math.max(...sizes);
+
+      return sizes
+        .map(size => {
+          const fr = size / maxSize;
+          return `${Number(fr.toFixed(3))}fr`;
+        })
+        .join(' ');
+    }
+
+    /**
+     * Convert grid-template-columns and rows.
+     * Both properties can exist together.
+     */
+    function calculateFR() {
+      const input = cssInput.value;
+
+      const properties = [
+        'grid-template-columns',
+        'grid-template-rows'
+      ];
+
+      let result = input;
+      let convertedCount = 0;
+      let errors = [];
+      let convertedStats = [];
+
+      properties.forEach(property => {
+
+        // Match declaration without consuming other properties
+        const regex = new RegExp(
+          `(^|[;\\n]\\s*)(${property}\\s*:\\s*)([^;\\n}]+)(;?)`,
+          'i'
+        );
+
+        const matches = [...result.matchAll(
+          new RegExp(regex.source, 'gi')
+        )];
+
+        // Process from the end to preserve match indexes
+        matches.reverse().forEach(match => {
+          const original = match[3].trim();
+          const converted = convertToFR(original);
+
+          if (!converted) {
+            errors.push(property);
+            return;
+          }
+
+          const fullMatch = match[0];
+
+          const replacement =
+            match[1] +
+            match[2] +
+            converted +
+            match[4];
+
+          result = result.replace(fullMatch, replacement);
+
+          convertedCount++;
+
+          convertedStats.push({
+            property,
+            original,
+            converted
+          });
+        });
+      });
+
+      cssOutput.value = result;
+
+      // Render statistics
+      stats.innerHTML = '';
+
+      convertedStats.forEach(item => {
+        const badge = document.createElement('div');
+        badge.className = 'calculator__stat';
+
+        const label = item.property
+          .replace('grid-template-', '')
+          .replace(/^./, char => char.toUpperCase());
+
+        badge.textContent = `${label}: ${item.converted}`;
+
+        stats.appendChild(badge);
+      });
+
+      // Status
+      if (errors.length) {
+        status.textContent =
+          `Format tidak didukung: ${[...new Set(errors)].join(', ')}. Gunakan ukuran px untuk setiap track.`;
+
+        status.classList.remove('success');
+        return;
+      }
+
+      if (convertedCount === 0) {
+        status.textContent =
+          'Tidak ditemukan deklarasi Grid Columns atau Rows yang valid.';
+
+        status.classList.remove('success');
+        return;
+      }
+
+      status.textContent =
+        `Berhasil! ${convertedCount} properti Grid dikonversi ke FR.`;
+
+      status.classList.add('success');
+    }
+
+    /**
+     * Live calculation
+     */
+    cssInput.addEventListener('input', calculateFR);
+
+    /**
+     * Copy CSS
+     */
+    copyButton.addEventListener('click', async () => {
+      if (!cssOutput.value) return;
+
+      try {
+        await navigator.clipboard.writeText(cssOutput.value);
+
+        copyButton.textContent = 'Copied!';
+
+      } catch {
+        cssOutput.select();
+
+        const copied = document.execCommand('copy');
+
+        copyButton.textContent = copied
+          ? 'Copied!'
+          : 'Copy failed!';
+      }
+
+      setTimeout(() => {
+        copyButton.textContent = 'Copy CSS';
+      }, 1500);
+    });
+
+    /**
+     * Initial calculation
+     */
+    calculateFR();
+  </script>
+
+</body>
+</html>
